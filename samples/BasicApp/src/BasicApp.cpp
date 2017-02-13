@@ -25,28 +25,28 @@ void BasicApp::setup()
 {
   //int stopMe = 1;
   fs::path p = "hello";
-  std::string s = p.str();
+  std::string s = p.string();
   p = "c:\\somefile.txt";
-  s = p.str();
+  s = p.string();
   p = "c:\\Windows\\somefile.txt";
-  s = p.str();
+  s = p.string();
   p = "c:\\Windows\\com\\\\\\other\\\\somefile.txt";
-  s = p.str();
+  s = p.string();
   p = "//usr/share/lib/gcc///lib.a";
-  s = p.str();
+  s = p.string();
   p = p / "milk";
-  s = p.str();
+  s = p.string();
   p /= "cat";
-  s = p.str();
+  s = p.string();
   p = "/orig";
   //p /= "/rootpath";
-  s = p;
+  s = p.string();
 
   p = "C:\\";
-  s = p;
+  s = p.string();
   bool b = p.is_root();
 
-  s = getAssetPath("file.txt");
+  s = getAssetPath("file.txt").string();
 
   int stopMe = 1;
 }

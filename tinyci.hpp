@@ -191,20 +191,20 @@ namespace cinder {
         m_has_root = p.m_has_root; m_parts = p.m_parts; }
       virtual ~path() {}
       operator bool() const { update_cache(); return m_cached.empty() ? false : true; }
-      operator std::string() const { return str(); }
-      bool  operator==(const path& rhs) const { return str() == rhs.str(); }
-      bool  operator!=(const path& rhs) const { return str() != rhs.str(); }
+      //operator std::string() const { return string(); }
+      bool  operator==(const path& rhs) const { return string() == rhs.string(); }
+      bool  operator!=(const path& rhs) const { return string() != rhs.string(); }
       path& operator=(const path& rhs) { if (this != &rhs) { m_cached = rhs.m_cached;
                 m_dirty = rhs.m_dirty; m_has_root = rhs.m_has_root; m_parts = rhs.m_parts; } return *this; }
       path& operator=(const std::string& rhs) { append(rhs, true); return *this; }
       path& operator=(const char* rhs) { append(rhs, true); return *this; }
-      path& operator/=(const path& rhs) { append(rhs.str()); return *this; }
+      path& operator/=(const path& rhs) { append(rhs.string()); return *this; }
       path& operator/=(const std::string& rhs) { append(rhs); return *this; }
       path& operator/=(const char* rhs) { append(rhs); return *this; }
-      path  operator/(const path& rhs) const { path r = *this; r.append(rhs.str()); return r; }
+      path  operator/(const path& rhs) const { path r = *this; r.append(rhs.string()); return r; }
       path  operator/(const std::string& rhs) const { path r = *this; r.append(rhs); return r; }
       path  operator/(const char* rhs) const { path r = *this; r.append(rhs); return r; }
-      const std::string&  str() const { update_cache(); return m_cached; }
+      const std::string&  string() const { update_cache(); return m_cached; }
       const char* c_str() const { update_cache(); return m_cached.c_str(); }
       bool  is_root() const { update_cache(); 
                 return ((m_cached.size() == 1) && (m_cached[0] == '/')) || 
@@ -497,12 +497,18 @@ namespace cinder {
     //!
     //!
     class AppImplLinux : public AppImpl {
+    public:
+
+    private:
     };
 
     //! \class App
     //!
     //!
     class WindowImplLinux : public WindowImpl {
+    public:
+
+    private:
     };
 #endif
 
@@ -536,12 +542,13 @@ namespace cinder {
         return RendererRef( new RendererGl( *this ) ); 
       }
 
+#if defined(CINDER_MSW)
       virtual void  setup(HWND wnd, HDC dc, std::shared_ptr<Renderer> sharedRenderer) override;
 
       virtual HWND getHwnd() override { 
         return 0; 
       }
-
+#endif
 
       virtual void prepareToggleFullScreen() override {
       }
@@ -603,7 +610,7 @@ namespace cinder {
   DataSource::DataSource() {}
   DataSource::DataSource(const BufferRef& buffer) : mBuffer(buffer) {}
   DataSource::DataSource(const fs::path& path) : mFilePath(true) {
-    const auto& s = path.str();
+    const auto& s = path.string();
     mBuffer = std::make_shared<Buffer>(s.size());
     std::copy(s.begin(), s.begin() + s.size(), mBuffer->getData());
   }
@@ -677,6 +684,14 @@ namespace cinder {
 // Core classes
 // -------------------------------------------------------------------------------------------------
 namespace cinder {
+#if defined( CINDER_ANDROID ) || defined( CINDER_LINUX )
+  static double LinuxGetElapsedSeconds() {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (double)((now.tv_sec * 1000000000LL) + now.tv_nsec)/1000000000.0;
+  } 
+#endif
+
   Timer::Timer() {
 #if defined( CINDER_COCOA ) || defined( CINDER_ANDROID ) || defined( CINDER_LINUX )
     mEndTime = mStartTime = -1;
@@ -999,9 +1014,11 @@ namespace cinder {
 
     RendererGl::~RendererGl() {}
 
+#if defined(CINDER_MSW)
     void RendererGl::setup(HWND wnd, HDC dc, std::shared_ptr<Renderer> sharedRenderer) {
       int stopMe = 1;
     }
+#endif
   } // namespace app
 } // namespace cinder
 
@@ -1233,7 +1250,7 @@ namespace cinder {
   DataSourceRef loadFile(const fs::path& path) {
     std::ifstream is(path.c_str(), std::ios::binary);
     if (! is) {
-      std::string msg = "Couldn't open " + path.str();
+      std::string msg = "Couldn't open " + path.string();
       throw std::runtime_error(msg);
     }
 
@@ -1255,7 +1272,7 @@ namespace cinder {
 #if defined(LC_IMAGE_H)
   ImageSourceRef loadImage(const fs::path& path) {
     if (! fs::exists(path)) {
-      std::string msg = "Couldn't find image file " + path.str();
+      std::string msg = "Couldn't find image file " + path.string();
       throw std::runtime_error(msg);
     }
 
@@ -1264,7 +1281,7 @@ namespace cinder {
     int channelCount = 0;
     unsigned char* pixels = lc_load_image(path.c_str(), &width, &height, &channelCount, 0); 
     if (pixels == nullptr) {
-      std::string msg = "Couldn't load image " + path.str();
+      std::string msg = "Couldn't load image " + path.string();
       throw std::runtime_error(msg);
     }
 
@@ -1301,6 +1318,18 @@ namespace cinder {
       return 0;                                                                                          \
     }
 #elif defined(CINDER_LINUX)
+  #define CINDER_APP( APP, RENDERER, ... )                                                               \
+    int main(int argc, char** argv)                                                                      \
+    {                                                                                                    \
+      auto appParams = new cinder::app::detail::AppParams();                                             \
+      appParams->name = #APP;                                                                            \
+      appParams->createRendererFn = []() -> cinder::app::Renderer* { return new RENDERER(); };           \
+      auto settings = new App::Settings();                                                               \
+      cinder::app::App::configureApp(appParams, settings, ##__VA_ARGS__);                                \
+      std::unique_ptr<ci::app::App> app = std::make_unique<APP>();                                       \
+      app->private_run();                                                                                \
+      return 0;                                                                                          \
+    }
 #endif
 
 #endif // TINYCI_H
